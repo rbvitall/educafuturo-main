@@ -1,28 +1,6 @@
-export interface FlashcardTopic {
-  id: string
-  title: string
-  cards: Flashcard[]
-}
+import type { Flashcard, FlashcardSubject, FlashcardTopic } from "@/types/flashcards"
 
-export interface FlashcardSubject {
-  id: string
-  title: string
-  year: 1 | 2 | 3
-  icon: string
-  color: string
-  topics: FlashcardTopic[]
-}
-
-export interface Flashcard {
-  id: string
-  subject: string
-  topic: string
-  difficulty: "easy" | "medium" | "hard"
-  question: string
-  answer: string
-  explanation?: string
-  tags: string[]
-}
+export type { Flashcard, FlashcardSubject, FlashcardTopic }
 
 // Dados dos flashcards organizados por matéria e tópico
 export const flashcardsData: FlashcardSubject[] = [

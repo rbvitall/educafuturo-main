@@ -140,7 +140,7 @@ export function PASGradeCalculator() {
         const difference = finalScore - cutoff
         return {
           course,
-          status: difference >= 0 ? "within" : "outside",
+          status: difference >= 0 ? ("within" as const) : ("outside" as const),
           difference,
         }
       })

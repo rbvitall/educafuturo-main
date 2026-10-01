@@ -1,5 +1,6 @@
 // Script to verify flashcards page loads without errors
 import { flashcardsData } from "../data/flashcards"
+import type { Flashcard, FlashcardSubject, FlashcardTopic } from "../types/flashcards"
 
 function verifyFlashcardsPage() {
   console.log("🔍 Verificando página de flashcards...")
@@ -59,9 +60,9 @@ function verifyFlashcardsPage() {
   console.log(`   Potência: ${powerCards}`)
 
   // Verify required fields
-  const requiredSubjectFields = ["id", "title", "topics"]
-  const requiredTopicFields = ["id", "title", "cards"]
-  const requiredCardFields = ["id", "question", "answer", "subject", "difficulty"]
+  const requiredSubjectFields: (keyof FlashcardSubject)[] = ["id", "title", "topics"]
+  const requiredTopicFields: (keyof FlashcardTopic)[] = ["id", "title", "cards"]
+  const requiredCardFields: (keyof Flashcard)[] = ["id", "question", "answer", "subject", "difficulty"]
 
   let hasErrors = false
 

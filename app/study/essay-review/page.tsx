@@ -12,6 +12,9 @@ import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/authContext"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toEssayEvaluation } from "@/lib/essay"
 import { motion } from "framer-motion"
 import {
   PenTool,
@@ -49,6 +52,10 @@ interface EssayEvaluation {
   created_at?: string
   theme?: string
 }
+
+// Mesmos limites da rota /api/correct-essay
+const MIN_WORDS = 50
+const MAX_CHARS = 8000
 
 const essayThemes = [
   {
@@ -94,6 +101,8 @@ export default function EssayReviewPage() {
   const [essayText, setEssayText] = useState("")
   const [wordCount, setWordCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  // Erro da última tentativa de correção, mostrado abaixo do editor (no lugar de alert)
+  const [correctionError, setCorrectionError] = useState<{ message: string; needsLogin?: boolean } | null>(null)
   const [evaluation, setEvaluation] = useState<EssayEvaluation | null>(null)
   const [essayHistory, setEssayHistory] = useState<EssayEvaluation[]>([])
   const [activeTab, setActiveTab] = useState("editor")
@@ -146,8 +155,13 @@ export default function EssayReviewPage() {
   }
 
   const correctEssay = async () => {
-    if (!essayText.trim() || wordCount < 50) {
-      alert("Por favor, escreva pelo menos 50 palavras para correção.")
+    setCorrectionError(null)
+    if (!essayText.trim() || wordCount < MIN_WORDS) {
+      setCorrectionError({ message: `Escreva pelo menos ${MIN_WORDS} palavras para enviar a redação.` })
+      return
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setCorrectionError({ message: "Você está sem internet. Seu texto continua aqui; tente de novo quando a conexão voltar." })
       return
     }
 
@@ -158,26 +172,36 @@ export default function EssayReviewPage() {
         tema: selectedTheme?.title || null,
       }
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        setCorrectionError({ message: "Sua sessão expirou. Entre de novo para corrigir a redação.", needsLogin: true })
+        return
+      }
+
       const response = await fetch("/api/correct-essay", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(requestBody),
       })
 
-      if (!response.ok) throw new Error("Erro na correção")
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setCorrectionError({
+          message: data.error || "Não foi possível corrigir a redação agora. Tente novamente em alguns minutos.",
+          needsLogin: response.status === 401,
+        })
+        return
+      }
 
-      const data = await response.json()
-      const parsedEvaluation = JSON.parse(data.avaliacao)
-
+      // A rota devolve os campos em português; a tela usa score/justification
       const newEvaluation: EssayEvaluation = {
         original_text: essayText,
-        total_score: parsedEvaluation.nota_total,
-        competencies: parsedEvaluation.competencias,
-        positive_points: parsedEvaluation.pontos_positivos,
-        improvement_points: parsedEvaluation.pontos_a_melhorar,
-        rewrite_suggestion: parsedEvaluation.sugestao_de_reescrita,
+        ...toEssayEvaluation(data.avaliacao),
         theme: selectedTheme?.title || undefined,
       }
 
@@ -204,7 +228,9 @@ export default function EssayReviewPage() {
       }
     } catch (error) {
       console.error("Erro na correção:", error)
-      alert("Erro ao corrigir redação. Tente novamente.")
+      setCorrectionError({
+        message: "A conexão com o corretor falhou. Seu texto continua aqui; tente novamente em alguns minutos.",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -375,17 +401,40 @@ export default function EssayReviewPage() {
                   <Textarea
                     placeholder="Digite sua redação aqui..."
                     value={essayText}
-                    onChange={(e) => setEssayText(e.target.value)}
+                    onChange={(e) => {
+                      setEssayText(e.target.value)
+                      if (correctionError) setCorrectionError(null)
+                    }}
+                    maxLength={MAX_CHARS}
+                    aria-label="Texto da redação"
+                    aria-describedby="essay-limits"
                     className="min-h-[400px] resize-none"
                   />
 
+                  {correctionError && (
+                    <Alert variant="destructive" role="alert">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>{correctionError.message}</span>
+                        {correctionError.needsLogin && (
+                          <Link href="/login" className="font-medium underline underline-offset-4">
+                            Entrar
+                          </Link>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <Badge variant={wordCount >= 50 ? "default" : "secondary"}>{wordCount} palavras</Badge>
-                      {wordCount < 50 && <span className="text-sm text-muted-foreground">Mínimo: 50 palavras</span>}
+                      <Badge variant={wordCount >= MIN_WORDS ? "default" : "secondary"}>{wordCount} palavras</Badge>
+                      <span id="essay-limits" className="text-sm tabular-nums text-muted-foreground">
+                        {wordCount < MIN_WORDS ? `Mínimo: ${MIN_WORDS} palavras · ` : ""}
+                        {essayText.length.toLocaleString("pt-BR")}/{MAX_CHARS.toLocaleString("pt-BR")} caracteres
+                      </span>
                     </div>
 
-                    <Button onClick={correctEssay} disabled={isLoading || wordCount < 50} className="gap-2">
+                    <Button onClick={correctEssay} disabled={isLoading || wordCount < MIN_WORDS} className="gap-2">
                       {isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -476,7 +525,7 @@ export default function EssayReviewPage() {
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">
-                      Nenhuma correção disponível. Escreva uma redação e clique em "Corrigir com IA".
+                      Nenhuma correção disponível. Escreva uma redação e clique em “Corrigir com IA”.
                     </p>
                   </CardContent>
                 </Card>

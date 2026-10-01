@@ -117,12 +117,10 @@ export default function SimuladoresPage() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         <h1 className="text-2xl font-bold">Simuladores de Circuitos</h1>
         <div className="mb-4">
-          <Link href="/review">
-            <Button variant="ghost" size="sm" className="flex items-center">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar para Revisão
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="sm" className="flex items-center">
+            <Link href="/review"><ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar para Revisão</Link>
+          </Button>
         </div>
 
         <Card className="border-0 shadow-none sticky top-0 bg-gray-50 z-10">
@@ -212,7 +210,7 @@ export default function SimuladoresPage() {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Simulador não disponível para incorporação</AlertTitle>
                   <AlertDescription>
-                    Este simulador não pode ser incorporado diretamente. Por favor, use o botão "Abrir em Nova Aba" para
+                    Este simulador não pode ser incorporado diretamente. Por favor, use o botão “Abrir em Nova Aba” para
                     acessá-lo.
                   </AlertDescription>
                 </Alert>

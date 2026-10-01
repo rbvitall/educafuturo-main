@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, CheckCircle2, Zap, Trophy, Shuffle, Clock, XCircle } from "lucide-react"
 import confetti from "canvas-confetti"
-import { ErrorBoundary } from "react-error-boundary"
+import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
@@ -507,13 +507,13 @@ const allChallenges: Challenge[] = [
   },
 ]
 
-function ErrorFallback({ error, resetErrorBoundary }) {
+function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
     <div role="alert" className="p-4 bg-red-100 border border-red-400 rounded-lg">
-      <h2 className="text-lg font-semibold text-red-800">Oops! Something went wrong:</h2>
-      <pre className="mt-2 text-sm text-red-600">{error.message}</pre>
+      <h2 className="text-lg font-semibold text-red-800">Ops! Algo deu errado:</h2>
+      <pre className="mt-2 text-sm text-red-600">{error instanceof Error ? error.message : String(error)}</pre>
       <Button onClick={resetErrorBoundary} className="mt-4">
-        Try again
+        Tentar novamente
       </Button>
     </div>
   )
@@ -591,7 +591,7 @@ export function CircuitBuilderGame() {
           particleCount: 100,
           spread: 70,
           origin: { y: 0.6 },
-        }).catch((err) => {
+        })?.catch((err) => {
           console.error("Error with confetti:", err)
         })
       }

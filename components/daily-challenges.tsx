@@ -505,7 +505,7 @@ export function DailyChallenges() {
       let storedChallenges: { date: string; challenges: Challenge[]; completed: boolean } | null = null
 
       if (storedData) {
-        storedChallenges = JSON.parse(storedData)
+        storedChallenges = JSON.parse(storedData) as { date: string; challenges: Challenge[]; completed: boolean }
         const storedDate = new Date(storedChallenges.date)
         storedDate.setHours(0, 0, 0, 0)
 

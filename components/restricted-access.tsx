@@ -1,5 +1,6 @@
 "use client"
 
+import type { ComponentProps } from "react"
 import { motion } from "framer-motion"
 import { LogIn } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -8,7 +9,7 @@ import { TopNav } from "@/components/top-nav"
 import { BottomNav } from "@/components/bottom-nav"
 
 interface RestrictedAccessProps {
-  activeNavItem?: string
+  activeNavItem?: ComponentProps<typeof BottomNav>["active"]
 }
 
 export function RestrictedAccess({ activeNavItem = "home" }: RestrictedAccessProps) {

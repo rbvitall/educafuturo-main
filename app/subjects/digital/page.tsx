@@ -14,11 +14,9 @@ export default function DigitalElectronicsPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon" aria-label="Voltar para a página inicial">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon" aria-label="Voltar para a página inicial">
+            <Link href="/"><ArrowLeft className="h-6 w-6" /></Link>
+          </Button>
           <h1 className="text-2xl font-bold">Eletrônica Digital</h1>
         </div>
 
@@ -91,12 +89,10 @@ export default function DigitalElectronicsPage() {
         </Card>
 
         <div className="flex justify-center">
-          <Link href="/study">
-            <Button className="gap-2">
-              <Zap className="h-5 w-5" />
-              Começar a Estudar Eletrônica Digital
-            </Button>
-          </Link>
+          <Button asChild className="gap-2">
+            <Link href="/study"><Zap className="h-5 w-5" />
+              Começar a Estudar Eletrônica Digital</Link>
+          </Button>
         </div>
       </main>
 

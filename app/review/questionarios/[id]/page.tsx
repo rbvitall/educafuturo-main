@@ -103,7 +103,7 @@ export default function QuizSessionPage() {
     return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
   }
 
-  const getCategoryColor = (category) => {
+  const getCategoryColor = (category: string) => {
     switch (category) {
       case "digital":
         return "bg-blue-100 text-blue-800"
@@ -122,11 +122,9 @@ export default function QuizSessionPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/review/questionarios">
-            <Button variant="ghost" size="icon" className="rounded-full" aria-label="Voltar para os questionários">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon" className="rounded-full" aria-label="Voltar para os questionários">
+            <Link href="/review/questionarios"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
           <div>
             <h1 className="text-xl font-bold">{quiz.title}</h1>
             <div className="flex items-center gap-2 text-sm text-gray-500">

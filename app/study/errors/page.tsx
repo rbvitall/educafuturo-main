@@ -80,11 +80,9 @@ export default function ErrorsPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/study">
-            <Button variant="ghost" size="icon" aria-label="Voltar para Estudos">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon" aria-label="Voltar para Estudos">
+            <Link href="/study"><ArrowLeft className="h-6 w-6" /></Link>
+          </Button>
           <h1 className="text-2xl font-bold">Análise de Erros Comuns</h1>
         </div>
 

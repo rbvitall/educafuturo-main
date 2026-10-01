@@ -1,4 +1,5 @@
 export interface Course {
+  id: string
   name: string
   degree: string
   schedule: string
@@ -13,12 +14,13 @@ export interface Course {
   }
 }
 
+// Valores vêm dos campos do formulário, por isso são strings (convertidas no cálculo)
 export interface PASGrade {
-  exam: number
-  essay: number
+  exam: string
+  essay: string
   language: {
     type: "english" | "spanish" | "french"
-    grade: number
+    grade: string
   }
 }
 

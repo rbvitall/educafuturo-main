@@ -1,6 +1,18 @@
 import { supabase } from "./supabaseClient"
 import type { SubjectSchedule, TimeSlot, CustomActivity } from "@/types/schedule"
 
+// Linha da tabela time_slots (colunas em snake_case, como vêm do banco)
+export interface TimeSlotRow {
+  id: string
+  user_id: string
+  day_of_week: string
+  start_time: string
+  end_time: string
+  activity: string
+  subject_id?: string
+  description?: string
+}
+
 export interface AgendaEvent {
   id: string
   user_id: string
@@ -102,7 +114,7 @@ export const scheduleDb = {
   },
 
   // Time Slots
-  async getTimeSlots(userId: string): Promise<TimeSlot[]> {
+  async getTimeSlots(userId: string): Promise<TimeSlotRow[]> {
     const { data, error } = await supabase
       .from("time_slots")
       .select("*")

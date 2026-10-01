@@ -65,7 +65,7 @@ export default function AccountPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [error, setError] = useState<string | null>(null)
-  const { user: authUser, isLoading: authLoading } = useAuth()
+  const { user: authUser, isLoading: authLoading, refreshUser } = useAuth()
   const [joinDate, setJoinDate] = useState<string | null>(null)
   const [lastActive, setLastActive] = useState<string | null>(null)
   const [studyGoal, setStudyGoal] = useState<number>(60)
@@ -81,8 +81,8 @@ export default function AccountPage() {
         // Se já temos o usuário do contexto de autenticação, use-o
         if (authUser) {
           setUser(authUser)
-          setName(authUser.fullName || authUser.user_metadata?.full_name || "")
-          setProfileImage(authUser.profileImage || authUser.user_metadata?.avatar_url || null)
+          setName(authUser.user_metadata?.full_name || authUser.user_metadata?.name || "")
+          setProfileImage(authUser.user_metadata?.avatar_url || null)
 
           // Carregar preferências de estudo e notificação dos metadados do usuário
           if (authUser.user_metadata?.studyPreferences) {
@@ -91,8 +91,8 @@ export default function AccountPage() {
           }
 
           if (authUser.user_metadata?.notificationPreferences) {
-            setEmailNotifications(authUser.user_metadata.notificationPreferences.email || true)
-            setPushNotifications(authUser.user_metadata.notificationPreferences.push || true)
+            setEmailNotifications(authUser.user_metadata.notificationPreferences.email ?? true)
+            setPushNotifications(authUser.user_metadata.notificationPreferences.push ?? true)
             setNotificationPreferences({
               studyReminders: authUser.user_metadata.notificationPreferences.studyReminders ?? true,
               contentUpdates: authUser.user_metadata.notificationPreferences.contentUpdates ?? true,
@@ -167,8 +167,8 @@ export default function AccountPage() {
 
             // Carregar preferências de notificação se existirem
             if (profile.notification_preferences) {
-              setEmailNotifications(profile.notification_preferences.email || true)
-              setPushNotifications(profile.notification_preferences.push || true)
+              setEmailNotifications(profile.notification_preferences.email ?? true)
+              setPushNotifications(profile.notification_preferences.push ?? true)
               setNotificationPreferences({
                 studyReminders: profile.notification_preferences.studyReminders ?? true,
                 contentUpdates: profile.notification_preferences.contentUpdates ?? true,
@@ -692,8 +692,8 @@ export default function AccountPage() {
         // Isso evita que o Switch volte para a posição anterior
         // Apenas atualize se não estiver no processo de salvar notificações
         if (!savingNotifications && profile.notification_preferences) {
-          setEmailNotifications(profile.notification_preferences.email || true)
-          setPushNotifications(profile.notification_preferences.push || true)
+          setEmailNotifications(profile.notification_preferences.email ?? true)
+          setPushNotifications(profile.notification_preferences.push ?? true)
           setNotificationPreferences({
             studyReminders: profile.notification_preferences.studyReminders ?? true,
             contentUpdates: profile.notification_preferences.contentUpdates ?? true,

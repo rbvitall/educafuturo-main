@@ -239,7 +239,7 @@ export default function FlashcardStudyPage() {
 
       // Try to find the subject by testing different combinations
       let subject = null
-      let remainingParts = []
+      let remainingParts: string[] = []
 
       // Try different subject ID combinations
       for (let i = 1; i <= parts.length - 1; i++) {

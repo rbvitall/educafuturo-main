@@ -14,6 +14,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   logout: () => Promise<void>
   forgotPassword: (email: string) => Promise<{ error: string | null }>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -136,6 +137,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Recarrega o usuário do Supabase (ex.: depois de atualizar nome/avatar nos metadados)
+  const refreshUser = async () => {
+    const {
+      data: { user: freshUser },
+      error,
+    } = await supabase.auth.getUser()
+    // Em erro de rede mantém o usuário atual; o listener de auth cuida de logout de verdade
+    if (!error && freshUser) setUser(freshUser)
+  }
+
   // Alias for compatibility
   const logout = signOut
 
@@ -148,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     logout,
     forgotPassword,
+    refreshUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

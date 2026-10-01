@@ -131,34 +131,44 @@ const initialPerformanceData: PerformanceData = {
   ],
 }
 
-const achievements = [
+type AchievementStatus = "completed" | "in-progress" | "not-started"
+
+interface Achievement {
+  id: string
+  title: string
+  progress: number
+  total: number
+  status: AchievementStatus
+}
+
+const achievements: Achievement[] = [
   {
     id: "1",
     title: "Complete 50% de Eletrônica Analógica",
     progress: 0,
     total: 50,
-    status: "not-started" as const,
+    status: "not-started",
   },
   {
     id: "2",
     title: "Resolva 100 questões",
     progress: 0,
     total: 100,
-    status: "not-started" as const,
+    status: "not-started",
   },
   {
     id: "3",
     title: "Mantenha uma sequência de estudo de 7 dias",
     progress: 0,
     total: 7,
-    status: "not-started" as const,
+    status: "not-started",
   },
   {
     id: "4",
     title: "Obtenha 90% de precisão em um quiz de Eletrônica Digital",
     progress: 0,
     total: 90,
-    status: "not-started" as const,
+    status: "not-started",
   },
 ]
 
@@ -400,7 +410,7 @@ const calculateSubjectProgress = async (userId: string) => {
       .limit(100)
 
     // Inicializar contadores por matéria
-    const subjects = {
+    const subjects: Record<string, { correct: number; total: number }> = {
       digital: { correct: 0, total: 0 },
       analog: { correct: 0, total: 0 },
       power: { correct: 0, total: 0 },
@@ -477,7 +487,7 @@ const calculateSubjectStudyTime = async (userId: string) => {
 
     if (error) throw error
 
-    const subjectTimes = {
+    const subjectTimes: Record<string, number> = {
       digital: 0,
       analog: 0,
       power: 0,
@@ -739,7 +749,7 @@ export default function PerformancePage() {
     const loadSelfAssessments = () => {
       try {
         const assessments = JSON.parse(localStorage.getItem("selfAssessments") || "{}")
-        const allAssessments = []
+        const allAssessments: any[] = []
 
         for (const [challengeId, challengeAssessments] of Object.entries(assessments)) {
           if (Array.isArray(challengeAssessments)) {
@@ -967,7 +977,8 @@ export default function PerformancePage() {
 
   // Atualizar conquistas com base nos dados de desempenho
   const updateAchievements = () => {
-    const newAchievements = [...achievements]
+    // Copia cada objeto para não alterar a lista inicial compartilhada do módulo
+    const newAchievements = achievements.map((a) => ({ ...a }))
 
     // Conquista 1: Complete 50% de Eletrônica Analógica
     const analogProgress = performanceData.subjectProgress.find((s) => s.name === "Eletrônica Analógica")
@@ -1239,7 +1250,7 @@ export default function PerformancePage() {
                             fill="#8884d8"
                             dataKey="value"
                             nameKey="name"
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                           >
                             {performanceData.subjectStudyTime.map((entry, index) => (
                               <Cell

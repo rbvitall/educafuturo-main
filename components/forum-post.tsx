@@ -25,7 +25,7 @@ import { useToast } from "@/components/ui/use-toast"
 
 interface ForumPostProps {
   post: ForumPost
-  onLike: (postId: string) => Promise<void>
+  onLike: (postId: string) => Promise<{ likes: number; userHasLiked: boolean }>
   onReply: (postId: string) => void
   onDelete: (postId: string) => Promise<void>
 }

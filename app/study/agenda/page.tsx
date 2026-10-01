@@ -223,11 +223,9 @@ export default function AgendaPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-4 mb-4">
-          <Link href="/study">
-            <Button variant="ghost" size="icon" aria-label="Voltar para Estudos">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon" aria-label="Voltar para Estudos">
+            <Link href="/study"><ArrowLeft className="h-6 w-6" /></Link>
+          </Button>
           <h1 className="text-2xl font-bold">Agenda</h1>
         </div>
 
@@ -242,9 +240,9 @@ export default function AgendaPage() {
               {!user ? (
                 <div className="text-center p-4">
                   <p className="text-muted-foreground mb-2">Você precisa estar logado para gerenciar tarefas</p>
-                  <Link href="/login">
-                    <Button>Fazer Login</Button>
-                  </Link>
+                  <Button asChild>
+                    <Link href="/login">Fazer Login</Link>
+                  </Button>
                 </div>
               ) : (
                 <>

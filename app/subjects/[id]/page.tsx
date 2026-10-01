@@ -45,12 +45,10 @@ export default function SubjectDetailPage() {
               Matéria não encontrada
             </h1>
             <p className="text-xs xs:text-sm text-gray-600 mb-4 xs:mb-6">A matéria solicitada não foi encontrada.</p>
-            <Link href="/">
-              <Button size="sm" className="h-7 xs:h-8 sm:h-9">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar ao Início
-              </Button>
-            </Link>
+            <Button asChild size="sm" className="h-7 xs:h-8 sm:h-9">
+              <Link href="/"><ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar ao Início</Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -84,12 +82,10 @@ export default function SubjectDetailPage() {
 
         {/* Back Button */}
         <div className="flex items-center gap-2">
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="h-8 px-2">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Voltar
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="sm" className="h-8 px-2">
+            <Link href="/"><ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar</Link>
+          </Button>
         </div>
 
         {/* Header */}

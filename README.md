@@ -75,6 +75,22 @@ OPENAI_API_KEY=sua_chave_da_openai
 
 As migrações SQL ficam em `supabase/migrations/`. Para montar o banco em um projeto novo, execute os arquivos em ordem cronológica (pelo SQL Editor do Supabase ou pela [CLI do Supabase](https://supabase.com/docs/guides/cli)). A tabela usada na correção de redações está em `scripts/create-essay-evaluations-table.sql`.
 
+A migração `20261001000000_harden_rls.sql` corrige as permissões do fórum, do banco de questões e das entregas de projetos. Rode-a também em bancos que já existem.
+
+#### Administradores
+
+Quem é admin fica na tabela `public.admins`, que o app não consegue alterar. Para promover alguém, rode no SQL Editor do Supabase:
+
+```sql
+INSERT INTO public.admins (user_id) VALUES ('<uuid do usuário>');
+```
+
+O admin acessa `/admin/projects` para avaliar as entregas de projetos e também pode apagar posts e comentários do fórum.
+
+#### Resumos em PDF
+
+Os resumos ficam no bucket privado `summary-pdfs` (arquivos `1.pdf`, `2.pdf`, `3.pdf`). A página gera um link temporário a cada clique.
+
 Projetos gratuitos do Supabase são pausados após alguns dias sem atividade. Se o app parar de responder, confira o painel e clique em **Resume project**.
 
 ## Scripts
@@ -85,6 +101,13 @@ Projetos gratuitos do Supabase são pausados após alguns dias sem atividade. Se
 | `pnpm build` | Build de produção              |
 | `pnpm start` | Roda o build de produção       |
 | `pnpm lint`  | Verifica o código com o linter |
+| `pnpm test`  | Roda os testes (Vitest)        |
+| `pnpm typecheck` | Verifica os tipos do TypeScript |
+
+### Testes
+
+- `app/api/correct-essay/route.test.ts`: login obrigatório, limite de uso, validação da redação e formato da resposta da correção.
+- `supabase/tests/harden-rls.test.ts`: aplica a migração de segurança num Postgres em memória (PGlite) e confere, com dois alunos e um admin, quem pode ler e escrever o quê.
 
 ## Estrutura do projeto
 
@@ -115,9 +138,11 @@ O plano gratuito da Vercel (Hobby) é limitado a uso não comercial.
 
 ## Próximos passos
 
-- Centralizar o cliente Supabase em um único arquivo
-- Remover `ignoreBuildErrors` do `next.config.js` e corrigir os erros de TypeScript
-- Fixar as versões das dependências que hoje usam `latest`
+- Apagar os arquivos sem uso e remover `ignoreBuildErrors` do `next.config.js` (os arquivos em uso já passam no TypeScript)
+- Configurar o ESLint (`next lint` ainda não tem configuração no projeto)
+- Trocar o limite de uso da correção de redação, que hoje fica em memória, por um armazenamento compartilhado (ex.: Upstash Redis) se o tráfego crescer
+- Consolidar as migrações num schema base para instalações novas
+- Paginar o fórum e dividir as páginas maiores (`performance`, `enem-calculator`, `account`, `rec`)
 
 ## Sobre
 

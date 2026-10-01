@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { TopNav } from "@/components/top-nav"
 import { BottomNav } from "@/components/bottom-nav"
@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabaseClient"
 import {
   createForumPost,
   createForumComment,
+  getForumPosts,
   toggleForumPostLike,
   updateForumPost,
   type ForumPost as ForumPostType,
@@ -26,7 +27,8 @@ import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Label } from "@/components/ui/label"
 
-const DEFAULT_AVATAR = "/default-avatar.png"
+const DEFAULT_AVATAR = "/placeholder-user.jpg"
+const PAGE_SIZE = 20
 
 export default function ForumPage() {
   const { user, isLoading: authLoading } = useAuth()
@@ -44,6 +46,13 @@ export default function ForumPage() {
   const [editContent, setEditContent] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [totalPosts, setTotalPosts] = useState(0)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  // Guarda quantos posts estão visíveis para o refresh em tempo real recarregar a mesma quantidade
+  const visibleCountRef = useRef(PAGE_SIZE)
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Cada carregamento ganha um número; só o mais recente pode atualizar a tela
+  const fetchSeq = useRef(0)
 
   // New states for the create post form
   const [title, setTitle] = useState("")
@@ -56,252 +65,21 @@ export default function ForumPage() {
   const [editAttachments, setEditAttachments] = useState<File[]>([])
   const [showAttachmentUpload, setShowAttachmentUpload] = useState<{ [key: string]: boolean }>({})
 
-  const fetchPosts = async () => {
-    setIsLoading(true)
+  const fetchPosts = async (limit = visibleCountRef.current, { silent = false } = {}) => {
+    const seq = ++fetchSeq.current
+    if (!silent) setIsLoading(true)
     try {
-      // Buscar posts
-      const { data: postsData, error: postsError } = await supabase
-        .from("forum_posts")
-        .select("*")
-        .eq("resolved", false)
-        .order("created_at", { ascending: false })
-        .limit(20)
-
-      if (postsError) {
-        console.error("Error fetching posts:", postsError)
-        throw postsError
-      }
-
-      if (!postsData) {
-        setPosts([])
-        return
-      }
-
-      // Buscar usuários separadamente
-      const userIds = [...new Set(postsData.map((post) => post.user_id))]
-      const { data: usersData, error: usersError } = await supabase
-        .from("profiles_public")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds)
-
-      if (usersError) {
-        console.error("Error fetching users:", usersError)
-        throw usersError
-      }
-
-      // Criar um mapa de usuários para fácil acesso
-      const usersMap = new Map()
-      usersData?.forEach((user) => {
-        usersMap.set(user.id, user)
-      })
-
-      // Buscar comentários e anexos para cada post
-      const postsWithCommentsAndAttachments = await Promise.all(
-        postsData.map(async (post) => {
-          // Buscar comentários
-          const { data: commentsData, error: commentsError } = await supabase
-            .from("forum_comments")
-            .select("*")
-            .eq("post_id", post.id)
-            .order("created_at", { ascending: true })
-
-          if (commentsError) {
-            console.error(`Error fetching comments for post ${post.id}:`, commentsError)
-            return {
-              ...post,
-              user: usersMap.get(post.user_id) || null,
-              comments: [],
-              attachments: [],
-            }
-          }
-
-          // Buscar anexos do post (com verificação de existência da tabela)
-          let postAttachmentsWithUrls = []
-          try {
-            const { data: postAttachments, error: postAttachmentsError } = await supabase
-              .from("forum_attachments")
-              .select("*")
-              .eq("post_id", post.id)
-              .order("created_at", { ascending: true })
-
-            if (postAttachmentsError) {
-              // Se a tabela não existir, apenas log o erro e continue
-              if (postAttachmentsError.message.includes("does not exist")) {
-                console.warn("Forum attachments table does not exist yet")
-              } else {
-                console.error(`Error fetching attachments for post ${post.id}:`, postAttachmentsError)
-              }
-            } else if (postAttachments) {
-              // Gerar URLs para os anexos do post
-              postAttachmentsWithUrls = await Promise.all(
-                postAttachments.map(async (attachment) => {
-                  try {
-                    const { data: urlData } = await supabase.storage
-                      .from("forum_attachments")
-                      .createSignedUrl(attachment.file_path, 3600) // URL válida por 1 hora
-
-                    return {
-                      ...attachment,
-                      url: urlData?.signedUrl || null,
-                    }
-                  } catch (error) {
-                    console.warn("Error creating signed URL for attachment:", error)
-                    return {
-                      ...attachment,
-                      url: null,
-                    }
-                  }
-                }),
-              )
-            }
-          } catch (error) {
-            console.warn("Error accessing forum_attachments table:", error)
-          }
-
-          // Buscar informações dos usuários para cada comentário
-          if (commentsData && commentsData.length > 0) {
-            const commentUserIds = [...new Set(commentsData.map((comment) => comment.user_id))]
-            const { data: commentUsersData, error: commentUsersError } = await supabase
-              .from("profiles_public")
-              .select("id, full_name, avatar_url")
-              .in("id", commentUserIds)
-
-            if (commentUsersError) {
-              console.error(`Error fetching users for comments of post ${post.id}:`, commentUsersError)
-              return {
-                ...post,
-                user: usersMap.get(post.user_id) || null,
-                comments: commentsData.map((comment) => ({ ...comment, user: null, attachments: [] })),
-                attachments: postAttachmentsWithUrls || [],
-              }
-            }
-
-            // Criar um mapa de usuários para os comentários
-            const commentUsersMap = new Map()
-            commentUsersData?.forEach((user) => {
-              commentUsersMap.set(user.id, user)
-            })
-
-            // Buscar anexos para cada comentário e adicionar informações de usuário
-            const commentsWithUsersAndAttachments = await Promise.all(
-              commentsData.map(async (comment) => {
-                let commentAttachmentsWithUrls = []
-
-                try {
-                  // Buscar anexos para este comentário
-                  const { data: commentAttachments, error: commentAttachmentsError } = await supabase
-                    .from("forum_attachments")
-                    .select("*")
-                    .eq("comment_id", comment.id)
-                    .order("created_at", { ascending: true })
-
-                  if (commentAttachmentsError) {
-                    if (!commentAttachmentsError.message.includes("does not exist")) {
-                      console.error(`Error fetching attachments for comment ${comment.id}:`, commentAttachmentsError)
-                    }
-                  } else if (commentAttachments) {
-                    // Gerar URLs para os anexos do comentário
-                    commentAttachmentsWithUrls = await Promise.all(
-                      commentAttachments.map(async (attachment) => {
-                        try {
-                          const { data: urlData } = await supabase.storage
-                            .from("forum_attachments")
-                            .createSignedUrl(attachment.file_path, 3600) // URL válida por 1 hora
-
-                          return {
-                            ...attachment,
-                            url: urlData?.signedUrl || null,
-                          }
-                        } catch (error) {
-                          console.warn("Error creating signed URL for comment attachment:", error)
-                          return {
-                            ...attachment,
-                            url: null,
-                          }
-                        }
-                      }),
-                    )
-                  }
-                } catch (error) {
-                  console.warn("Error accessing forum_attachments table for comments:", error)
-                }
-
-                return {
-                  ...comment,
-                  user: commentUsersMap.get(comment.user_id) || null,
-                  attachments: commentAttachmentsWithUrls || [],
-                }
-              }),
-            )
-
-            return {
-              ...post,
-              user: usersMap.get(post.user_id) || null,
-              comments: commentsWithUsersAndAttachments,
-              attachments: postAttachmentsWithUrls || [],
-            }
-          }
-
-          return {
-            ...post,
-            user: usersMap.get(post.user_id) || null,
-            comments: commentsData || [],
-            attachments: postAttachmentsWithUrls || [],
-          }
-        }),
+      const { posts: loaded, total } = await getForumPosts(limit, user?.id)
+      if (seq !== fetchSeq.current) return // chegou uma resposta mais nova antes desta
+      setPosts(loaded)
+      setTotalPosts(total)
+      setLikesCache(
+        Object.fromEntries(loaded.map((post) => [post.id, { likes: post.likes, userHasLiked: post.user_has_liked }])),
       )
-
-      // Verificar se o usuário atual curtiu cada post
-      if (user) {
-        const postsWithLikes = await Promise.all(
-          postsWithCommentsAndAttachments.map(async (post) => {
-            const { data: likesData, error: likesError } = await supabase
-              .from("post_likes")
-              .select("*")
-              .eq("post_id", post.id)
-
-            if (likesError) {
-              console.error(`Error fetching likes for post ${post.id}:`, likesError)
-              return {
-                ...post,
-                likes: 0,
-                user_has_liked: false,
-              }
-            }
-
-            const userLike = likesData?.find((like) => like.user_id === user.id)
-            const likesCount = likesData?.length || 0
-
-            // Atualizar o cache de curtidas
-            setLikesCache((prev) => ({
-              ...prev,
-              [post.id]: {
-                likes: likesCount,
-                userHasLiked: !!userLike,
-              },
-            }))
-
-            return {
-              ...post,
-              likes: likesCount,
-              user_has_liked: !!userLike,
-            }
-          }),
-        )
-
-        setPosts(postsWithLikes)
-      } else {
-        setPosts(
-          postsWithCommentsAndAttachments.map((post) => ({
-            ...post,
-            likes: 0,
-            user_has_liked: false,
-          })),
-        )
-      }
-
+      setError(null)
       setLastFetched(new Date())
     } catch (error) {
+      if (seq !== fetchSeq.current) return
       console.error("Error in fetchPosts:", error)
       setError("Não foi possível carregar as discussões. Por favor, tente novamente.")
       toast({
@@ -310,8 +88,22 @@ export default function ForumPage() {
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
+  }
+
+  const loadMore = async () => {
+    const next = visibleCountRef.current + PAGE_SIZE
+    visibleCountRef.current = next
+    setIsLoadingMore(true)
+    await fetchPosts(next, { silent: true })
+    setIsLoadingMore(false)
+  }
+
+  // Várias mudanças seguidas (ex.: curtidas) viram um único recarregamento
+  const scheduleRefresh = () => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(() => fetchPosts(visibleCountRef.current, { silent: true }), 500)
   }
 
   useEffect(() => {
@@ -328,7 +120,7 @@ export default function ForumPage() {
           table: "forum_posts",
         },
         () => {
-          fetchPosts()
+          scheduleRefresh()
         },
       )
       .on(
@@ -339,7 +131,7 @@ export default function ForumPage() {
           table: "forum_comments",
         },
         () => {
-          fetchPosts()
+          scheduleRefresh()
         },
       )
       .on(
@@ -350,13 +142,14 @@ export default function ForumPage() {
           table: "post_likes",
         },
         () => {
-          fetchPosts()
+          scheduleRefresh()
         },
       )
       .subscribe()
 
     return () => {
       postsSubscription.unsubscribe()
+      if (refreshTimer.current) clearTimeout(refreshTimer.current)
     }
   }, [user, autoRefresh])
 
@@ -664,8 +457,8 @@ export default function ForumPage() {
           <CardHeader>
             <div className="flex items-center gap-4">
               <Avatar>
-                <AvatarImage src={user?.profileImage || DEFAULT_AVATAR} alt={user?.fullName || "User"} />
-                <AvatarFallback>{user?.fullName?.[0] || "U"}</AvatarFallback>
+                <AvatarImage src={user?.user_metadata?.avatar_url || DEFAULT_AVATAR} alt={user?.user_metadata?.full_name || "Usuário"} />
+                <AvatarFallback>{(user?.user_metadata?.full_name || user?.email || "U")[0].toUpperCase()}</AvatarFallback>
               </Avatar>
               <div>
                 <h3 className="text-lg font-semibold">Criar nova discussão</h3>
@@ -730,7 +523,7 @@ export default function ForumPage() {
             ) : error ? (
               <div className="text-center py-8 text-red-500">
                 <p>Erro ao carregar discussões: {error}</p>
-                <Button onClick={fetchPosts} className="mt-4">
+                <Button onClick={() => fetchPosts()} className="mt-4">
                   Tentar novamente
                 </Button>
               </div>
@@ -741,8 +534,8 @@ export default function ForumPage() {
                     <div className="flex items-start gap-4">
                       <Avatar>
                         <AvatarImage
-                          src={post.user?.avatar_url || user?.profileImage || "/default-avatar.png"}
-                          alt={post.user?.full_name || user?.user_metadata?.full_name || "Usuário"}
+                          src={post.user?.avatar_url || DEFAULT_AVATAR}
+                          alt={post.user?.full_name || "Usuário"}
                         />
                         <AvatarFallback>{post.user?.full_name?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                       </Avatar>
@@ -780,13 +573,10 @@ export default function ForumPage() {
                           </div>
                         ) : (
                           <>
-                            <h3 className="font-semibold text-lg">{post.title}</h3>
+                            <h3 className="font-semibold text-lg [overflow-wrap:anywhere]">{post.title}</h3>
                             <p className="text-sm text-gray-500 mb-2">
                               Postado por{" "}
-                              {post.user?.full_name ||
-                                post.user?.name ||
-                                user?.user_metadata?.full_name ||
-                                "Usuário sem nome"}{" "}
+                              {post.user?.full_name || "Usuário sem nome"}{" "}
                               • {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR })}
                               {post.updated_at && post.updated_at !== post.created_at && (
                                 <span className="italic">
@@ -796,7 +586,7 @@ export default function ForumPage() {
                                 </span>
                               )}
                             </p>
-                            <p className="text-gray-700 mb-4 whitespace-pre-wrap">{post.content}</p>
+                            <p className="text-gray-700 mb-4 whitespace-pre-wrap [overflow-wrap:anywhere]">{post.content}</p>
                           </>
                         )}
 
@@ -824,7 +614,7 @@ export default function ForumPage() {
                                   />
                                 )}
                                 <span className="transition-all">
-                                  {likesCache[post.id]?.likes || post.likes || 0} Curtidas
+                                  {likesCache[post.id]?.likes ?? post.likes ?? 0} Curtidas
                                 </span>
                               </Button>
                               <div className="flex items-center gap-1">
@@ -838,15 +628,15 @@ export default function ForumPage() {
                                   <div className="flex items-center gap-2 mb-1">
                                     <Avatar className="h-6 w-6">
                                       <AvatarImage
-                                        src={comment.user?.avatar_url || user?.profileImage || "/default-avatar.png"}
-                                        alt={comment.user?.full_name || user?.user_metadata?.full_name || "Usuário"}
+                                        src={comment.user?.avatar_url || DEFAULT_AVATAR}
+                                        alt={comment.user?.full_name || "Usuário"}
                                       />
                                       <AvatarFallback>
                                         {comment.user?.full_name?.[0]?.toUpperCase() || "U"}
                                       </AvatarFallback>
                                     </Avatar>
                                     <p className="text-sm font-semibold">
-                                      {comment.user?.full_name || user?.user_metadata?.full_name || "Usuário sem nome"}
+                                      {comment.user?.full_name || "Usuário sem nome"}
                                     </p>
                                     <span className="text-xs text-gray-500">•</span>
                                     <p className="text-xs text-gray-500">
@@ -856,7 +646,7 @@ export default function ForumPage() {
                                       })}
                                     </p>
                                   </div>
-                                  <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+                                  <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{comment.content}</p>
                                 </div>
                               ))}
                               <div className="flex items-center gap-2 mt-4">
@@ -915,6 +705,17 @@ export default function ForumPage() {
                 <MessageSquare className="mx-auto h-12 w-12 mb-2 text-gray-400" />
                 <p>Nenhuma discussão encontrada</p>
                 <p className="text-sm">Seja o primeiro a iniciar uma discussão!</p>
+              </div>
+            )}
+            {!isLoading && posts.length < totalPosts && (
+              <div className="flex flex-col items-center gap-1 pt-4">
+                <Button variant="outline" onClick={loadMore} disabled={isLoadingMore}>
+                  {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Carregar mais discussões
+                </Button>
+                <p className="text-xs text-gray-500">
+                  Mostrando {posts.length} de {totalPosts}
+                </p>
               </div>
             )}
           </CardContent>

@@ -1,7 +1,15 @@
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import type { WeeklySchedule, SubjectSchedule, CustomActivity } from "@/types/schedule"
-import type { Subject } from "@/types/pas"
+
+// Matéria da calculadora de notas escolares (components/school-grade-calculator.tsx)
+export interface GradeSubject {
+  id: string
+  name: string
+  finalAverage: number
+  grades: (number | null)[]
+  notes?: string
+}
 
 interface GradeCalculation {
   average: number
@@ -58,15 +66,11 @@ export function exportScheduleToPDF(
   doc.setFontSize(14)
   doc.text("Matérias", 14, 15)
 
-  const subjectsData = subjects.map((subject) => [
-    subject.name,
-    subject.description,
-    `${subject.frequency}x por semana`,
-  ])
+  const subjectsData = subjects.map((subject) => [subject.name, subject.description])
 
   autoTable(doc, {
     startY: 20,
-    head: [["Matéria", "Descrição", "Frequência"]],
+    head: [["Matéria", "Descrição"]],
     body: subjectsData,
   })
 
@@ -87,7 +91,7 @@ export function exportScheduleToPDF(
   doc.save("cronograma-de-estudos.pdf")
 }
 
-export function exportGradesToPDF(subjects: Subject[]) {
+export function exportGradesToPDF(subjects: GradeSubject[]) {
   const doc = new jsPDF()
 
   // Add title
@@ -111,7 +115,7 @@ export function exportGradesToPDF(subjects: Subject[]) {
 
     const excess = remainingGrades === 0 ? average - subject.finalAverage : 0
 
-    const status =
+    const status: GradeCalculation["status"] =
       remainingGrades === 0
         ? average >= subject.finalAverage
           ? "passing"
@@ -182,7 +186,8 @@ export function exportGradesToPDF(subjects: Subject[]) {
   })
 
   // Add legend
-  const legendY = doc.lastAutoTable.finalY + 10
+  // jspdf-autotable grava a posição final da última tabela no próprio doc
+  const legendY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
   doc.setFontSize(10)
   doc.text("Legenda:", 14, legendY)
 

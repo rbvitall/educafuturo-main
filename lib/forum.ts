@@ -47,188 +47,141 @@ export interface ForumAttachment {
   url?: string
 }
 
-export async function getForumPosts(): Promise<ForumPost[]> {
-  try {
-    const { data: session, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError) throw sessionError
+type ProfileSummary = { id: string; full_name?: string; avatar_url?: string }
 
-    const { data: posts, error: postsError } = await supabase
-      .from("forum_posts")
-      .select("*")
-      .eq("resolved", false)
-      .order("created_at", { ascending: false })
+const SIGNED_URL_TTL_SECONDS = 60 * 60
 
-    if (postsError) throw postsError
+// Gera os links assinados de todos os anexos numa única chamada ao storage
+async function withSignedUrls(attachments: ForumAttachment[]): Promise<ForumAttachment[]> {
+  if (attachments.length === 0) return []
+  const { data, error } = await supabase.storage
+    .from("forum_attachments")
+    .createSignedUrls(
+      attachments.map((a) => a.file_path),
+      SIGNED_URL_TTL_SECONDS,
+    )
+  if (error) {
+    console.error("Erro ao gerar links dos anexos:", error)
+    return attachments
+  }
+  const urlByPath = new Map(data.map((d) => [d.path, d.signedUrl]))
+  return attachments.map((a) => ({ ...a, url: urlByPath.get(a.file_path) ?? undefined }))
+}
 
-    if (!posts) return []
+const IN_CHUNK_SIZE = 100 // evita URLs longas demais no filtro .in()
+const PAGE_ROWS = 1000 // limite padrão de linhas por resposta do PostgREST
 
-    // Fetch user data separately
-    const userIds = new Set(posts.map((post) => post.user_id))
-    const { data: users, error: usersError } = await supabase
+/**
+ * Busca todas as linhas de `table` cujo `column` está em `ids`, dividindo os ids em blocos
+ * e paginando cada bloco. Sem isso, o PostgREST corta a resposta em 1000 linhas sem avisar.
+ */
+async function selectAllIn<T>(table: string, columns: string, column: string, ids: string[]): Promise<T[]> {
+  const rows: T[] = []
+  for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + IN_CHUNK_SIZE)
+    for (let from = 0; ; from += PAGE_ROWS) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(columns)
+        .in(column, chunk)
+        .order("created_at", { ascending: true })
+        .range(from, from + PAGE_ROWS - 1)
+      if (error) throw error
+      rows.push(...((data ?? []) as T[]))
+      if (!data || data.length < PAGE_ROWS) break
+    }
+  }
+  return rows
+}
+
+function groupBy<T>(items: T[], key: (item: T) => string | null | undefined): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const item of items) {
+    const k = key(item)
+    if (!k) continue
+    const list = map.get(k)
+    if (list) list.push(item)
+    else map.set(k, [item])
+  }
+  return map
+}
+
+/**
+ * Busca as discussões abertas mais recentes, com autor, comentários, anexos e curtidas.
+ * Usa um número fixo de consultas (em lote), não importa quantos posts venham:
+ * posts → (comentários, curtidas, anexos dos posts) → (anexos dos comentários, perfis) → links.
+ */
+export async function getForumPosts(
+  limit = 20,
+  currentUserId?: string,
+): Promise<{ posts: ForumPost[]; total: number }> {
+  const { data: posts, error: postsError, count } = await supabase
+    .from("forum_posts")
+    .select("*", { count: "exact" })
+    .eq("resolved", false)
+    .order("created_at", { ascending: false })
+    .range(0, limit - 1)
+
+  if (postsError) throw postsError
+  if (!posts || posts.length === 0) return { posts: [], total: count ?? 0 }
+
+  const postIds = posts.map((p) => p.id)
+
+  const logAndEmpty = (what: string) => (error: unknown) => {
+    console.error(`Erro ao buscar ${what}:`, error)
+    return []
+  }
+
+  const [comments, likes, postAttachments] = await Promise.all([
+    selectAllIn<ForumComment>("forum_comments", "*", "post_id", postIds),
+    selectAllIn<{ post_id: string; user_id: string }>("post_likes", "post_id, user_id", "post_id", postIds).catch(
+      logAndEmpty("curtidas"),
+    ),
+    selectAllIn<ForumAttachment>("forum_attachments", "*", "post_id", postIds).catch(logAndEmpty("anexos dos posts")),
+  ])
+
+  const commentIds = comments.map((c) => c.id)
+  const userIds = [...new Set([...posts.map((p) => p.user_id), ...comments.map((c) => c.user_id)])]
+
+  const [profileRows, commentAttachments] = await Promise.all([
+    supabase
       .from("profiles_public")
       .select("id, full_name, avatar_url")
-      .in("id", Array.from(userIds))
-
-    if (usersError) throw usersError
-
-    const userMap = new Map(users?.map((user) => [user.id, user]) || [])
-
-    // Fetch comments and attachments for each post
-    const postsWithCommentsAndAttachments = await Promise.all(
-      posts.map(async (post) => {
-        // Fetch comments
-        const { data: comments, error: commentsError } = await supabase
-          .from("forum_comments")
-          .select("*")
-          .eq("post_id", post.id)
-          .order("created_at", { ascending: true })
-
-        if (commentsError) {
-          console.error(`Error fetching comments for post ${post.id}:`, commentsError)
-          return {
-            ...post,
-            user: userMap.get(post.user_id),
-            comments: [],
-            attachments: [],
-          }
-        }
-
-        // Fetch post attachments
-        const { data: postAttachments, error: postAttachmentsError } = await supabase
-          .from("forum_attachments")
-          .select("*")
-          .eq("post_id", post.id)
-          .order("created_at", { ascending: true })
-
-        if (postAttachmentsError) {
-          console.error(`Error fetching attachments for post ${post.id}:`, postAttachmentsError)
-        }
-
-        // Generate URLs for post attachments
-        const postAttachmentsWithUrls = await Promise.all(
-          (postAttachments || []).map(async (attachment) => {
-            const { data: urlData } = await supabase.storage
-              .from("forum_attachments")
-              .createSignedUrl(attachment.file_path, 3600) // URL valid for 1 hour
-
-            return {
-              ...attachment,
-              url: urlData?.signedUrl || null,
-            }
-          }),
-        )
-
-        // Buscar informações dos usuários para cada comentário
-        if (comments && comments.length > 0) {
-          const commentUserIds = [...new Set(comments.map((comment) => comment.user_id))]
-          const { data: commentUsers, error: commentUsersError } = await supabase
-            .from("profiles_public")
-            .select("id, full_name, avatar_url")
-            .in("id", commentUserIds)
-
-          if (commentUsersError) {
-            console.error(`Error fetching users for comments of post ${post.id}:`, commentUsersError)
-            return {
-              ...post,
-              user: userMap.get(post.user_id),
-              comments: comments.map((comment) => ({ ...comment, user: null })),
-              attachments: postAttachmentsWithUrls || [],
-            }
-          }
-
-          // Criar um mapa de usuários para os comentários
-          const commentUserMap = new Map(commentUsers?.map((user) => [user.id, user]) || [])
-
-          // Fetch comment attachments and add user info to each comment
-          const commentsWithUsersAndAttachments = await Promise.all(
-            comments.map(async (comment) => {
-              // Fetch attachments for this comment
-              const { data: commentAttachments, error: commentAttachmentsError } = await supabase
-                .from("forum_attachments")
-                .select("*")
-                .eq("comment_id", comment.id)
-                .order("created_at", { ascending: true })
-
-              if (commentAttachmentsError) {
-                console.error(`Error fetching attachments for comment ${comment.id}:`, commentAttachmentsError)
-                return {
-                  ...comment,
-                  user: commentUserMap.get(comment.user_id) || null,
-                  attachments: [],
-                }
-              }
-
-              // Generate URLs for comment attachments
-              const commentAttachmentsWithUrls = await Promise.all(
-                (commentAttachments || []).map(async (attachment) => {
-                  const { data: urlData } = await supabase.storage
-                    .from("forum_attachments")
-                    .createSignedUrl(attachment.file_path, 3600) // URL valid for 1 hour
-
-                  return {
-                    ...attachment,
-                    url: urlData?.signedUrl || null,
-                  }
-                }),
-              )
-
-              return {
-                ...comment,
-                user: commentUserMap.get(comment.user_id) || null,
-                attachments: commentAttachmentsWithUrls || [],
-              }
-            }),
-          )
-
-          return {
-            ...post,
-            user: userMap.get(post.user_id),
-            comments: commentsWithUsersAndAttachments,
-            attachments: postAttachmentsWithUrls || [],
-          }
-        }
-
-        return {
-          ...post,
-          user: userMap.get(post.user_id),
-          comments: comments || [],
-          attachments: postAttachmentsWithUrls || [],
-        }
+      .in("id", userIds)
+      .then(({ data, error }) => {
+        if (error) console.error("Erro ao buscar perfis:", error)
+        return (data ?? []) as ProfileSummary[]
       }),
-    )
+    selectAllIn<ForumAttachment>("forum_attachments", "*", "comment_id", commentIds).catch(
+      logAndEmpty("anexos dos comentários"),
+    ),
+  ])
 
-    // Fetch likes for each post
-    const postsWithLikes = await Promise.all(
-      postsWithCommentsAndAttachments.map(async (post) => {
-        const { data: likes, error: likesError } = await supabase.from("post_likes").select("*").eq("post_id", post.id)
+  const attachments = await withSignedUrls([...postAttachments, ...commentAttachments])
 
-        if (likesError) {
-          console.error(`Error fetching likes for post ${post.id}:`, likesError)
-          return {
-            ...post,
-            likes: 0,
-            user_has_liked: false,
-          }
-        }
+  const profiles = new Map<string, ProfileSummary>(profileRows.map((p) => [p.id, p]))
+  const attachmentsByPost = groupBy(attachments, (a) => a.post_id)
+  const attachmentsByComment = groupBy(attachments, (a) => a.comment_id)
+  const commentsByPost = groupBy(comments, (c) => c.post_id)
+  const likesByPost = groupBy(likes, (l) => l.post_id)
 
-        const likesCount = likes?.length || 0
-        const userHasLiked = session.session?.user?.id
-          ? likes?.some((like) => like.user_id === session.session?.user?.id) || false
-          : false
+  const result: ForumPost[] = posts.map((post) => {
+    const postLikes = likesByPost.get(post.id) ?? []
+    return {
+      ...post,
+      user: profiles.get(post.user_id),
+      attachments: attachmentsByPost.get(post.id) ?? [],
+      likes: postLikes.length,
+      user_has_liked: currentUserId ? postLikes.some((l) => l.user_id === currentUserId) : false,
+      comments: (commentsByPost.get(post.id) ?? []).map((comment) => ({
+        ...comment,
+        user: profiles.get(comment.user_id),
+        attachments: attachmentsByComment.get(comment.id) ?? [],
+      })),
+    }
+  })
 
-        return {
-          ...post,
-          likes: likesCount,
-          user_has_liked: userHasLiked,
-        }
-      }),
-    )
-
-    return postsWithLikes
-  } catch (error) {
-    console.error("Error in getForumPosts:", error)
-    throw error
-  }
+  return { posts: result, total: count ?? result.length }
 }
 
 export async function createForumPost(

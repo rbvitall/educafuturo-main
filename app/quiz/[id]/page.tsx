@@ -172,7 +172,6 @@ export default function QuizSessionPage() {
           onNext={handleNext}
           selectedAnswer={answers[quiz.questions[currentQuestion].id]}
           elapsedTime={elapsedTime}
-          progress={progress}
         />
       </main>
 

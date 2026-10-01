@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { TopNav } from "@/components/top-nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,33 +20,64 @@ interface ProjectSubmission {
   created_at: string
 }
 
+const STATUS_LABEL: Record<ProjectSubmission["status"], string> = {
+  pending: "Pendente",
+  approved: "Aprovado",
+  rejected: "Rejeitado",
+}
+
 export default function AdminProjectsPage() {
   const [submissions, setSubmissions] = useState<ProjectSubmission[]>([])
-  const { user } = useAuth()
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
+  const { user, isLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [feedback, setFeedback] = useState<{ [key: string]: string }>({})
 
-  useEffect(() => {
-    if (user?.role !== "admin") {
-      router.push("/")
-    } else {
-      fetchSubmissions()
-    }
-  }, [user, router])
-
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     const { data, error } = await supabase
       .from("project_submissions")
       .select("*")
       .order("created_at", { ascending: false })
 
     if (error) {
-      console.error("Error fetching submissions:", error)
+      console.error("Erro ao buscar entregas:", error)
+      toast({ title: "Erro", description: "Não foi possível carregar as entregas.", variant: "destructive" })
     } else {
-      setSubmissions(data)
+      setSubmissions(data ?? [])
     }
-  }
+  }, [toast])
+
+  // Quem é admin fica na tabela "admins" (ver migração 20261001000000_harden_rls.sql).
+  // A RLS do banco é quem realmente protege os dados; esta checagem só decide o que mostrar.
+  useEffect(() => {
+    if (isLoading) return
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    let cancelled = false
+    supabase
+      .from("admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        const admin = !error && !!data
+        setIsAdmin(admin)
+        if (admin) {
+          fetchSubmissions()
+        } else {
+          router.push("/")
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, isLoading, router, fetchSubmissions])
 
   const handleFeedbackChange = (submissionId: string, value: string) => {
     setFeedback((prev) => ({
@@ -55,23 +86,28 @@ export default function AdminProjectsPage() {
     }))
   }
 
-  const handleApprove = async (submissionId: string) => {
+  const review = async (submissionId: string, status: "approved" | "rejected", text: string) => {
     const { error } = await supabase
       .from("project_submissions")
       .update({
-        status: "approved",
-        feedback: feedback[submissionId] || "Projeto aprovado! Parabéns!",
+        status,
+        feedback: text,
+        evaluated_at: new Date().toISOString(),
       })
       .eq("id", submissionId)
 
     if (error) {
-      console.error("Error approving submission:", error)
+      console.error("Erro ao avaliar entrega:", error)
+      toast({ title: "Erro", description: "Não foi possível salvar a avaliação.", variant: "destructive" })
     } else {
       fetchSubmissions()
     }
   }
 
-  const handleReject = async (submissionId: string) => {
+  const handleApprove = (submissionId: string) =>
+    review(submissionId, "approved", feedback[submissionId] || "Projeto aprovado! Parabéns!")
+
+  const handleReject = (submissionId: string) => {
     if (!feedback[submissionId]) {
       toast({
         title: "Erro",
@@ -80,20 +116,18 @@ export default function AdminProjectsPage() {
       })
       return
     }
+    review(submissionId, "rejected", feedback[submissionId])
+  }
 
-    const { error } = await supabase
-      .from("project_submissions")
-      .update({
-        status: "rejected",
-        feedback: feedback[submissionId],
-      })
-      .eq("id", submissionId)
-
-    if (error) {
-      console.error("Error rejecting submission:", error)
-    } else {
-      fetchSubmissions()
-    }
+  if (isLoading || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-16">
+        <TopNav />
+        <main className="container mx-auto px-4 py-6">
+          <p className="text-muted-foreground">Verificando permissões...</p>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -101,25 +135,27 @@ export default function AdminProjectsPage() {
       <TopNav />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        <h1 className="text-2xl font-bold">Admin: Project Submissions</h1>
+        <h1 className="text-2xl font-bold">Admin: entregas de projetos</h1>
+
+        {submissions.length === 0 && <p className="text-muted-foreground">Nenhuma entrega até agora.</p>}
 
         <div className="grid gap-6">
           {submissions.map((submission) => (
             <Card key={submission.id}>
               <CardHeader>
-                <CardTitle>Project: {submission.project_id}</CardTitle>
+                <CardTitle>Projeto: {submission.project_id}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>User ID: {submission.user_id}</p>
-                <p>Status: {submission.status}</p>
-                <p>Submitted: {new Date(submission.created_at).toLocaleString()}</p>
+                <p>Aluno (ID): {submission.user_id}</p>
+                <p>Status: {STATUS_LABEL[submission.status] ?? submission.status}</p>
+                <p>Enviado em: {new Date(submission.created_at).toLocaleString("pt-BR")}</p>
                 <a
                   href={submission.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline"
                 >
-                  View Submission
+                  Ver entrega
                 </a>
 
                 {submission.status === "pending" && (
@@ -143,14 +179,14 @@ export default function AdminProjectsPage() {
 
                 <div className="mt-4 space-x-2">
                   <Button onClick={() => handleApprove(submission.id)} disabled={submission.status !== "pending"}>
-                    Approve
+                    Aprovar
                   </Button>
                   <Button
                     onClick={() => handleReject(submission.id)}
                     disabled={submission.status !== "pending" || !feedback[submission.id]}
                     variant="destructive"
                   >
-                    Reject
+                    Rejeitar
                   </Button>
                 </div>
               </CardContent>

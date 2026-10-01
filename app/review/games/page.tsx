@@ -372,11 +372,9 @@ export default function GamesPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/review">
-            <Button variant="ghost" size="icon" aria-label="Voltar para Revisão">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon" aria-label="Voltar para Revisão">
+            <Link href="/review"><ArrowLeft className="h-6 w-6" /></Link>
+          </Button>
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Jogos Educativos

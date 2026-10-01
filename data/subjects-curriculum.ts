@@ -26,7 +26,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Circuitos",
     year: 1,
     icon: "Zap",
-    color: "bg-blue-500",
+    color: "bg-blue-700",
     description: "Fundamentos de circuitos elétricos e análise matemática aplicada",
     objectives: [
       "Compreender conceitos de ordem de grandeza",
@@ -84,7 +84,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Eletrônica Digital",
     year: 1,
     icon: "Cpu",
-    color: "bg-indigo-500",
+    color: "bg-indigo-600",
     description: "Fundamentos da eletrônica digital e sistemas lógicos",
     objectives: [
       "Compreender sistemas de numeração",
@@ -133,7 +133,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Matemática",
     year: 1,
     icon: "Calculator",
-    color: "bg-green-500",
+    color: "bg-green-700",
     description: "Fundamentos matemáticos para eletrônica",
     objectives: [
       "Dominar conceitos de funções",
@@ -164,7 +164,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Física - Força da Natureza",
     year: 1,
     icon: "Atom",
-    color: "bg-purple-500",
+    color: "bg-purple-700",
     description: "Fundamentos físicos aplicados à eletrônica",
     objectives: [
       "Compreender grandezas vetoriais",
@@ -222,7 +222,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Introdução à Computação",
     year: 1,
     icon: "Monitor",
-    color: "bg-cyan-500",
+    color: "bg-cyan-700",
     description: "Ferramentas computacionais para engenharia",
     objectives: ["Dominar planilhas eletrônicas", "Utilizar ferramentas do Office", "Aplicar normas ABNT"],
     topics: [
@@ -259,7 +259,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Matemática",
     year: 2,
     icon: "Calculator",
-    color: "bg-green-600",
+    color: "bg-emerald-700",
     description: "Matemática avançada para eletrônica",
     objectives: ["Dominar análise combinatória", "Calcular probabilidades", "Aplicar em sistemas digitais"],
     topics: [
@@ -322,7 +322,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Instalação",
     year: 2,
     icon: "Home",
-    color: "bg-yellow-500",
+    color: "bg-yellow-700",
     description: "Instalações elétricas e projetos",
     objectives: ["Dominar coordenadas cartesianas", "Usar AutoCAD eficientemente", "Calcular previsão de carga"],
     topics: [
@@ -358,7 +358,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Eletrônica Analógica",
     year: 2,
     icon: "Brain",
-    color: "bg-pink-500",
+    color: "bg-pink-700",
     description: "Fundamentos da eletrônica analógica",
     objectives: [
       "Compreender componentes analógicos",
@@ -398,7 +398,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Programação",
     year: 2,
     icon: "Code",
-    color: "bg-red-500",
+    color: "bg-red-700",
     description: "Fundamentos de programação",
     objectives: ["Desenvolver lógica de programação", "Implementar algoritmos", "Criar programas funcionais"],
     topics: [
@@ -431,7 +431,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Sistemas de Comunicação",
     year: 2,
     icon: "Wifi",
-    color: "bg-cyan-500",
+    color: "bg-cyan-700",
     description: "Redes e sistemas de comunicação",
     objectives: ["Compreender redes de computadores", "Calcular endereçamento IP", "Implementar virtualização"],
     topics: [
@@ -479,7 +479,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Física - Força da Natureza e Campo",
     year: 3,
     icon: "Atom",
-    color: "bg-purple-700",
+    color: "bg-violet-800",
     description: "Campos físicos e eletromagnetismo",
     objectives: ["Compreender campos elétricos", "Analisar campos magnéticos", "Estudar eletromagnetismo"],
     topics: [
@@ -522,7 +522,7 @@ export const curriculumData: CurriculumSubject[] = [
     name: "Eletrônica de Potência",
     year: 3,
     icon: "Zap",
-    color: "bg-orange-600",
+    color: "bg-orange-700",
     description: "Sistemas de potência e conversão de energia",
     objectives: ["Analisar conversores de potência", "Projetar fontes chaveadas", "Controlar motores elétricos"],
     prerequisites: ["analogica-2ano", "matematica-2ano"], // Requer analógica e matemática do 2º ano

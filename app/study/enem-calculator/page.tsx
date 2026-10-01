@@ -281,7 +281,7 @@ export default function ENEMCalculatorPage() {
 
             setLoading(false)
           },
-          error: (error) => {
+          error: (error: Error) => {
             console.error("Error parsing CSV:", error)
             setError("Erro ao processar dados das universidades")
 
@@ -1057,7 +1057,7 @@ export default function ENEMCalculatorPage() {
                         <div>
                           <h3 className="font-medium text-gray-800">Calcule sua média</h3>
                           <p className="text-sm text-gray-600 max-w-xs">
-                            Preencha suas notas no formulário ao lado e clique em "Calcular Média" para ver seus
+                            Preencha suas notas no formulário ao lado e clique em “Calcular Média” para ver seus
                             resultados
                           </p>
                         </div>

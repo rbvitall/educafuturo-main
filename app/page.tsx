@@ -22,7 +22,7 @@ import {
   Settings,
 } from "lucide-react"
 import Link from "next/link"
-import { useLocalStorage } from "@/lib/useLocalStorage"
+import { useLocalStorage } from "@/hooks/use-local-storage"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { SortAsc, SortDesc, Star } from "lucide-react"
@@ -161,11 +161,12 @@ export default function HomePage() {
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <select
+              aria-label="Filtrar por ano"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value === "all" ? "all" : Number.parseInt(e.target.value))}
-              className="px-3 py-2 border rounded-md text-sm"
+              className="h-10 rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="all">Todos os anos</option>
               <option value={1}>1º Ano</option>
@@ -175,6 +176,7 @@ export default function HomePage() {
             <Button
               variant={showFavoritesOnly ? "default" : "outline"}
               onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              aria-pressed={showFavoritesOnly}
               className="flex-shrink-0"
             >
               <Star className="h-4 w-4 mr-2" />
@@ -255,9 +257,9 @@ export default function HomePage() {
             <Progress value={0} className="bg-white/20" />
           </div>
           {!user && (
-            <Link href="/login">
-              <Button className="w-full mt-4 bg-[#FF6B00] hover:bg-[#FF6B00]/90 text-white">Entrar</Button>
-            </Link>
+            <Button asChild className="w-full mt-4 bg-orange-700 text-white hover:bg-orange-800">
+              <Link href="/login">Entrar</Link>
+            </Button>
           )}
         </div>
 

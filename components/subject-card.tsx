@@ -28,13 +28,13 @@ export function SubjectCard({
       className={`p-4 hover:shadow-md transition-all dark:border-gray-800 ${className ?? ""}`}
       onClick={onClick}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-3">
-          <Icon className="h-6 w-6 text-white dark:text-white" />
-          <h3 className="font-medium text-white dark:text-white">{title}</h3>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Icon className="h-6 w-6 shrink-0 text-white" aria-hidden="true" />
+          <h3 className="font-medium text-white">{title}</h3>
         </div>
 
-        <span className="text-white dark:text-white text-sm">
+        <span className="shrink-0 text-sm tabular-nums text-white" aria-label={`${progress} de ${total} concluídos`}>
           {progress}/{total}
         </span>
       </div>

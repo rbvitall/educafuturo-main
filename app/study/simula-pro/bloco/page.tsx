@@ -116,7 +116,7 @@ export default function BlocoPage() {
   }
 
   const calculateScore = () => {
-    return answers.reduce((score, answer, index) => {
+    return answers.reduce<number>((score, answer, index) => {
       if (answer === enemQuestions[index].correctAnswer) {
         return score + 1
       }

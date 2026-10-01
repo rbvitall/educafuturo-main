@@ -2,12 +2,28 @@ export type Difficulty = "easy" | "medium" | "hard"
 
 export interface Flashcard {
   id: string
-  question: string // Now a simple string
-  answer: string // Now a simple string
-  difficulty: Difficulty
-  subject: "digital" | "analog" | "power"
+  subject: string
   topic: string
-  completed: boolean
+  difficulty: Difficulty
+  question: string
+  answer: string
+  explanation?: string
+  tags: string[]
+}
+
+export interface FlashcardTopic {
+  id: string
+  title: string
+  cards: Flashcard[]
+}
+
+export interface FlashcardSubject {
+  id: string
+  title: string
+  year: 1 | 2 | 3
+  icon: string
+  color: string
+  topics: FlashcardTopic[]
 }
 
 export interface StudySession {

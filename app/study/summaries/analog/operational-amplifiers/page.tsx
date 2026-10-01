@@ -12,11 +12,9 @@ export default function OperationalAmplifiersPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/performance">
-            <Button variant="ghost" size="icon" aria-label="Voltar para Desempenho">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon" aria-label="Voltar para Desempenho">
+            <Link href="/performance"><ArrowLeft className="h-6 w-6" /></Link>
+          </Button>
           <h1 className="text-2xl font-bold">Amplificadores Operacionais</h1>
         </div>
 

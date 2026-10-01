@@ -5,6 +5,7 @@ import type React from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/authContext"
 import { OfflineWarning } from "@/components/offline-warning"
+import { Toaster } from "@/components/ui/toaster"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         {children}
         <OfflineWarning />
+        <Toaster />
       </AuthProvider>
     </ThemeProvider>
   )

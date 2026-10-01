@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Lock, Upload, CheckCircle, XCircle, Clock } from "lucide-react"
 import * as Icons from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { AlertCircle } from "lucide-react"
@@ -38,7 +39,7 @@ export function ProjectCard({
   feedback,
   status,
 }: ProjectCardProps) {
-  const Icon = Icons[icon]
+  const Icon = Icons[icon] as LucideIcon
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null) // Added error state
