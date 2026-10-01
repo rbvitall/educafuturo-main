@@ -138,11 +138,9 @@ O plano gratuito da Vercel (Hobby) é limitado a uso não comercial.
 
 ## Próximos passos
 
-- Apagar os arquivos sem uso e remover `ignoreBuildErrors` do `next.config.js` (os arquivos em uso já passam no TypeScript)
-- Configurar o ESLint (`next lint` ainda não tem configuração no projeto)
 - Trocar o limite de uso da correção de redação, que hoje fica em memória, por um armazenamento compartilhado (ex.: Upstash Redis) se o tráfego crescer
 - Consolidar as migrações num schema base para instalações novas
-- Paginar o fórum e dividir as páginas maiores (`performance`, `enem-calculator`, `account`, `rec`)
+- Dividir as páginas maiores (`performance`, `enem-calculator`, `account`, `rec`)
 
 ## Sobre
 
